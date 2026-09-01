@@ -1,0 +1,302 @@
+name: Frahoosh Android Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build Frahoosh APK
+    runs-on: ubuntu-22.04
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install system dependencies
+        run: |
+          set -euxo pipefail
+
+          sudo apt-get update
+
+          sudo apt-get install -y \
+            git \
+            zip \
+            unzip \
+            wget \
+            curl \
+            autoconf \
+            automake \
+            libtool \
+            autopoint \
+            gettext \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libtinfo6 \
+            cmake \
+            libffi-dev \
+            libssl-dev \
+            build-essential
+
+      - name: Install Python build tools
+        run: |
+          set -euxo pipefail
+
+          python -m pip install --upgrade pip
+
+          python -m pip install \
+            "cython==0.29.36" \
+            "buildozer==1.5.0" \
+            virtualenv
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configure Android SDK
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          echo "=========================================="
+          echo "ANDROID SDK CONFIGURATION"
+          echo "=========================================="
+
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+
+          echo "SDK_ROOT=$SDK_ROOT"
+
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+
+          if [ ! -f "$SDKMANAGER" ]; then
+            echo "ERROR: sdkmanager not found:"
+            echo "$SDKMANAGER"
+
+            find "$SDK_ROOT" -type f -name sdkmanager 2>/dev/null || true
+
+            exit 1
+          fi
+
+          echo "SDKMANAGER=$SDKMANAGER"
+
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROIDSDK=$SDK_ROOT" >> "$GITHUB_ENV"
+
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+          echo "=========================================="
+          echo "SDKMANAGER VERSION"
+          echo "=========================================="
+
+          "$SDKMANAGER" --version
+
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SDK_ROOT="${ANDROID_SDK_ROOT}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+
+          echo "=========================================="
+          echo "ACCEPT ANDROID SDK LICENSES"
+          echo "=========================================="
+
+          echo "=========================================="
+          echo "LICENSE ACCEPTANCE COMPLETE"
+          echo "=========================================="
+
+      - name: Install Android SDK components
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SDK_ROOT="${ANDROID_SDK_ROOT}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+
+          echo "=========================================="
+          echo "INSTALL ANDROID SDK COMPONENTS"
+          echo "=========================================="
+
+          # IMPORTANT: do not pipe `yes` into package installs.
+          # sdkmanager exits normally after installation, which closes the pipe;
+          # with `set -o pipefail` that makes `yes` report SIGPIPE / Broken pipe
+          # and incorrectly fails the GitHub Actions job.
+          "$SDKMANAGER" "platform-tools"
+          "$SDKMANAGER" "platforms;android-35"
+          "$SDKMANAGER" "build-tools;35.0.0"
+          "$SDKMANAGER" "ndk;28.2.13676358"
+
+          # Buildozer/p4a selects the highest installed build-tools version.
+          # Keep the SDK deterministic: only the tested 35.0.0 build-tools remain.
+          find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d ! -name "35.0.0" -exec rm -rf {} +
+
+          test -d "$SDK_ROOT/build-tools/35.0.0"
+          test -x "$SDK_ROOT/build-tools/35.0.0/aapt2"
+
+          # Accept licenses again after installing the packages; this covers
+          # licenses introduced by newly installed SDK/NDK components.
+          yes | "$SDKMANAGER" --licenses || true
+
+          echo "=========================================="
+          echo "ANDROID SDK COMPONENTS READY"
+          echo "=========================================="
+
+          echo "Installed build-tools:"
+          ls -la "$SDK_ROOT/build-tools" || true
+
+          echo "Installed platforms:"
+          ls -la "$SDK_ROOT/platforms" || true
+
+      - name: Configure Buildozer SDK paths
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          SDK_ROOT="${ANDROID_SDK_ROOT}"
+
+          echo "=========================================="
+          echo "CONFIGURE BUILDOZER SDK PATHS"
+          echo "=========================================="
+
+          export ANDROID_HOME="$SDK_ROOT"
+          export ANDROID_SDK_ROOT="$SDK_ROOT"
+          export ANDROIDSDK="$SDK_ROOT"
+
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "ANDROIDSDK=$ANDROIDSDK"
+
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROIDSDK=$SDK_ROOT" >> "$GITHUB_ENV"
+
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+          echo "=========================================="
+          echo "BUILDOZER WILL USE SYSTEM SDK"
+          echo "=========================================="
+
+      - name: Prepare Buildozer
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          echo "=========================================="
+          echo "BUILDOZER CONFIGURATION"
+          echo "=========================================="
+
+          buildozer --version
+
+          if [ ! -f buildozer.spec ]; then
+            echo "ERROR: buildozer.spec not found"
+            exit 1
+          fi
+
+          echo "buildozer.spec found."
+
+          echo "ANDROIDSDK=$ANDROIDSDK"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+      - name: Prepare runtime configuration
+        shell: bash
+        env:
+          FRAHOOSH_SUPABASE_URL: ${{ secrets.FRAHOOSH_SUPABASE_URL }}
+          FRAHOOSH_SUPABASE_ANON_KEY: ${{ secrets.FRAHOOSH_SUPABASE_ANON_KEY }}
+          FRAHOOSH_SCHOOL_ID: ${{ vars.FRAHOOSH_SCHOOL_ID }}
+          FRAHOOSH_SCHOOL_NAME: ${{ vars.FRAHOOSH_SCHOOL_NAME }}
+          FRAHOOSH_SCHOOL_YEAR: ${{ vars.FRAHOOSH_SCHOOL_YEAR }}
+        run: |
+          set -euxo pipefail
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          data = {
+              "FRAHOOSH_SUPABASE_URL": os.getenv("FRAHOOSH_SUPABASE_URL", ""),
+              "FRAHOOSH_SUPABASE_ANON_KEY": os.getenv("FRAHOOSH_SUPABASE_ANON_KEY", ""),
+              "FRAHOOSH_SCHOOL_ID": os.getenv("FRAHOOSH_SCHOOL_ID", "frahoosh-school"),
+              "FRAHOOSH_SCHOOL_NAME": os.getenv("FRAHOOSH_SCHOOL_NAME", "دبیرستان سردار شهید حاجی‌زاده ۲"),
+              "FRAHOOSH_SCHOOL_YEAR": os.getenv("FRAHOOSH_SCHOOL_YEAR", "۱۴۰۵ - ۱۴۰۶"),
+          }
+          Path("mobile/runtime_config.json").write_text(
+              json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+          )
+          PY
+
+          echo "Runtime configuration file created."
+
+      - name: Validate Python sources
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python -m compileall -q mobile
+
+      - name: Build APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          echo "=========================================="
+          echo "ANDROID SDK"
+          echo "=========================================="
+
+          echo "ANDROIDSDK=$ANDROIDSDK"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+          echo "=========================================="
+          echo "VERIFY SDK"
+          echo "=========================================="
+
+          SDKMANAGER="$ANDROIDSDK/cmdline-tools/latest/bin/sdkmanager"
+
+          "$SDKMANAGER" --version
+
+          echo "Build tools:"
+          ls -la "$ANDROIDSDK/build-tools"
+
+          test "$(find "$ANDROIDSDK/build-tools" -mindepth 1 -maxdepth 1 -type d | wc -l)" -eq 1
+          test -d "$ANDROIDSDK/build-tools/35.0.0"
+
+          echo "Buildozer spec Android settings:"
+          grep -E "^(android\.api|android\.minapi|android\.ndk|android\.ndk_api|android\.skip_update|android\.accept_sdk_license)" buildozer.spec
+
+          echo "Platforms:"
+          ls -la "$ANDROIDSDK/platforms"
+
+          echo "=========================================="
+          echo "BUILD APK"
+          echo "=========================================="
+
+          buildozer android debug
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Frahoosh-APK
+          path: bin/*.apk
+          if-no-files-found: error
+
