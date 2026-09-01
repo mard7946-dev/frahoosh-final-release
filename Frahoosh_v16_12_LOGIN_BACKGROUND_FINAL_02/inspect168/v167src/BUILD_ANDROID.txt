@@ -1,0 +1,2 @@
+Android note:
+This desktop PySide6 tree is not the Kivy mobile source. Build the APK from the separate mobile/ repository and its buildozer.spec/workflow. Do not feed this desktop tree to Buildozer.

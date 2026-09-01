@@ -1,0 +1,7 @@
+{
+  "url": "https://YOUR_PROJECT_REF.supabase.co",
+  "publishable_key": "sb_publishable_REPLACE_ME",
+  "school_id": "frahoosh-school",
+  "school_token": "GENERATE_A_UNIQUE_SCHOOL_TOKEN",
+  "timeout": 8
+}

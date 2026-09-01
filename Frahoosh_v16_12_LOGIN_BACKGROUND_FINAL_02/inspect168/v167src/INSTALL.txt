@@ -1,0 +1,24 @@
+Frahoosh - Management Panel Patch
+
+این بسته فقط فایل‌های اصلاح‌شده پنل مدیریت و وابستگی‌های لازم را دارد.
+ساختار پوشه‌ها را عیناً روی ریشه پروژه کپی کنید و فایل‌های هم‌نام را جایگزین کنید.
+
+تست‌های انجام‌شده:
+- AST syntax validation: OK
+- Python compileall: OK
+- Database schema/service integration: OK
+- Manager credential verification: OK
+- New user CRUD service: OK
+- Announcement persistence: OK
+- Weekly schedule persistence: OK
+- Exam schedule persistence: OK
+- Competition persistence: OK
+- Virtual server configuration persistence: OK
+- Virtual class create/approve/start workflow: code validated
+- Management dashboard statistics: connected to school.db
+
+مدیر اصلی:
+username: 0053409531
+password: h0053409531
+
+نکته: فایل school.db داخل این بسته نیست تا اطلاعات فعلی مدرسه شما overwrite نشود؛ migration در database/db.py هنگام اجرای برنامه اعمال می‌شود.

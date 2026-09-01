@@ -1,0 +1,31 @@
+FRAHOOSh v16.7 - MISSING TABLES + UNIFIED INBOX + AUDIENCE ROUTING
+
+This build is based on v16.6 Supabase Publishable Sync Ready.
+
+Fixes:
+1) Adds startup creation for AI tables:
+   - ai_analysis_runs
+   - ai_recommendations
+   - ai_reports
+2) Adds startup creation for settings/sync tables:
+   - school_settings
+   - application_settings
+   - virtual_server_config
+   - server_sync_settings
+3) Fixes Smart Board / unified event table name collision.
+   The unified cross-panel event hub owns school_events.
+   Smart Board calendar events now use smart_board_school_events.
+   Legacy Smart Board school_events data is migrated when detected.
+4) Adds "صندوق پیام" and "ارسال پیام" to the main Frahoosh navigation.
+   They are available for every authenticated role from the main sidebar.
+5) Unified Inbox pulls from school_events/event_receipts and also attempts
+   remote sync, so grades, attendance, meetings, competitions, notices,
+   assignments and other routed events can appear in one inbox.
+6) Unified Messenger requires audience selection before final send.
+7) Existing Supabase configuration is preserved; no keys/tokens are changed.
+8) Existing local SQLite remains authoritative/offline-first.
+
+IMPORTANT:
+- Keep the existing school.db as-is when replacing the application files.
+- Do NOT replace/delete school.db.
+- Keep server_config.json with your own private values.

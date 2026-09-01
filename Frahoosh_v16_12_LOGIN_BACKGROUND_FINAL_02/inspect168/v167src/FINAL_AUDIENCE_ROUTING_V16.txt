@@ -1,0 +1,71 @@
+FRAHOOSH V16 - FINAL AUDIENCE ROUTING
+=====================================
+
+This version is based directly on the stabilized Frahoosh v15.9 package.
+
+Core change
+-----------
+Every cross-panel publication can now carry an explicit audience selection.
+The common vocabulary is:
+- student
+- class
+- manager
+- teacher
+- vice
+- advisor
+- class_parents
+- student_parents
+- school_parents
+- grade_students
+- school_students
+- school_staff
+- school_all
+
+Flow
+----
+1. User opens a record/message form.
+2. Audience selector is shown before final publication on the integrated core forms.
+3. Selected audiences are stored with the resulting school event.
+4. The event router resolves those audiences to actual user accounts.
+5. Recipients receive the event in their own unified inbox.
+6. Delivery/seen receipts remain account based.
+
+Important identity rule
+-----------------------
+Student/teacher/parent internal IDs are links to the school records. They are
+not used as payment-recognition identifiers. Account usernames are the delivery
+identity. Student/parent relationships are resolved through linked_student_id
+and parent_children.
+
+Database additions
+------------------
+- audience_capture
+- event_audiences
+
+The existing school_events/event_receipts/message_targets/message_delivery
+structures remain compatible.
+
+Integrated core forms
+---------------------
+- Unified messenger
+- Manager announcements
+- Teacher grades
+- Teacher assignments
+- Weekly schedule registration
+- Exam schedule registration (management and education)
+- Competitions / activities
+
+Legacy-safe behavior
+--------------------
+Older modules that have not yet been converted to the visible selector keep the
+existing automatic routing rules, so information is not silently lost. Their
+triggers are now rebuilt through the same unified event service and old duplicate
+triggers are removed.
+
+Validation
+----------
+- Python syntax compilation completed for modified modules.
+- Audience capture was tested transactionally on grade registration.
+- Explicit audience was verified to override automatic student routing.
+- Recipient resolution was verified.
+- Test database rows/events were removed after validation.

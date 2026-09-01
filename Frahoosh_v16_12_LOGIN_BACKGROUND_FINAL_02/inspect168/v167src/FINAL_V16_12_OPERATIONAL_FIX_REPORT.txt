@@ -1,0 +1,55 @@
+FRAHOOSH v16_12 — FINAL OPERATIONAL FIX
+
+Date: 2026-08-26
+
+Resolved in this build:
+1. Executive Deputy:
+   - Classes
+   - Executive Affairs
+   - Reports
+   Each requested item has an explicit route to a real CRUD table.
+
+2. Teachers:
+   - Attendance
+   - Exams
+   Each requested item has an explicit route to a real CRUD table.
+
+3. Students:
+   - Competitions & Activities
+   - Weekly Schedule
+   - Exams
+   - Performance Report
+   Each requested item has an explicit route to a real table; student views are read-only.
+
+4. Smart Board:
+   - Educational Board
+   The requested item opens the real smart_board_whiteboards table.
+   Interactive tools are also connected to the existing smart_board_interactive_tools table.
+
+5. AI:
+   - Smart Assistant
+   - Educational Analysis
+   - Smart Report
+   - Q&A
+   Each requested button now opens a real table instead of an empty/decorative box.
+
+6. Parent panel:
+   - QDate/QTimer import was corrected; these are imported from PySide6.QtCore.
+
+7. Jalali dates:
+   - All reusable CRUD tables now display Gregorian ISO dates as Jalali.
+   - User-entered dates in writable CRUD tables are accepted as Jalali (example: 1405/06/04) and persisted as ISO Gregorian internally.
+   - Fields explicitly named *_shamsi remain Jalali.
+   - Persian/Arabic digits are normalized for date entry.
+
+8. Database safety:
+   Required tables are ensured at application startup for the repaired modules.
+
+Static QA:
+- Python compileall: PASS (0 syntax errors)
+- Required database tables/columns: PASS
+- Jalali conversion round-trip: PASS (2026-08-26 <-> 1405/06/04)
+- No remaining import of QDate/QTimer from ui.complete_module_pages.py
+
+Important:
+This build is intended as the final operational v16_12 repair before packaging to Web / EXE / APK.

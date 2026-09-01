@@ -1,0 +1,14 @@
+Frahoosh v15_6 Integrated
+
+Base: Frahoosh_Final_v15_6_teacher_classes_sync(1)
+
+Included in this package:
+- Original v15_6 project/UI preserved.
+- Student competitions/festivals/activity registration connection integrated.
+- Khwarizmi and cultural student buttons route to the real activity registration page.
+
+Intentionally NOT changed:
+- Teacher virtual-class visibility/synchronization.
+- Employment certificate design/behavior.
+
+Those two items remain frozen for a later pass.

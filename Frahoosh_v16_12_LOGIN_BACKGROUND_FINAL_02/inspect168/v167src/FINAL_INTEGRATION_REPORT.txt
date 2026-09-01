@@ -1,0 +1,29 @@
+FRAHOOSH v15.8 - FULL INTEGRATION PASS
+========================================
+Base: Frahoosh_v15_8_CORE_DATA_FLOW_FIX
+
+Completed in this pass:
+- Central DB bootstrap/migration runs before panels.
+- Management dashboard/statistics no longer fails when smart_board_messages is absent.
+- Management navigation can open all major panels.
+- Management weekly schedule now creates canonical teacher_classes links.
+- Education Deputy buttons now open real SQLite CRUD tables: attendance, referrals, meetings, reports, virtual classes, notifications, exams, question bank.
+- Cultural Deputy buttons now use real table-backed CRUD for every activity type.
+- Advisor already had persistent CRUD pages; retained and connected to school.db.
+- Executive panel retains persistent CRUD tabs and real student/asset/class/request data.
+- Teacher panel rebuilt around persistent tables for classes, attendance, grades, assignments, online quizzes/classes, lesson plans, meetings and reports.
+- Student panel rebuilt around persistent tables for profile, attendance, grades, assignments, messages, cultural registrations and reports.
+- Parent panel retains selected-child context and table-backed grades, discipline, performance, meetings, schedules, exams, payments and transport requests.
+- AI panel buttons use real school database data and navigation buttons open the appropriate school panels.
+- Existing older schemas receive compatibility columns where required.
+
+Validation:
+- python -m compileall -q . : PASS
+- ManagementService.initialize() : PASS
+- ManagementService.stats() : PASS
+- Required core tables present: PASS (69 tables in validation DB)
+- Management weekly schedule -> teacher_classes link test: PASS
+
+GUI limitation:
+- Full click-by-click Qt GUI execution was not possible in this build environment because PySide6/qt_material runtime packages are not installed here.
+- Static Python compilation and database/service integration tests were run.

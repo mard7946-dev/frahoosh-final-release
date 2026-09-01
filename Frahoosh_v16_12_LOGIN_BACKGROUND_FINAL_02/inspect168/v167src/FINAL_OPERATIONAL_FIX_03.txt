@@ -1,0 +1,13 @@
+Frahoosh v16_12 - FINAL OPERATIONAL FIX 03
+
+Final corrections in this build:
+1) Online class manager UI rebuilt for readable layout; fields grouped and table made resizable.
+2) Teacher selection, teacher ID/code, grade/class audience, Jalali date, start/end, duration, capacity and smart-class settings are connected to DB.
+3) Online class approval remains restricted to manager/executive; auto-close remains enabled.
+4) Parent online payment is now an independent shell route, like student online payment.
+5) Finance panel has explicit Online Payment Settings route connected to payment_offers/payment_attempts.
+6) Teacher exam route now opens the real three-slot scheduler, not the legacy table. Coordinated mode and secure mode are retained.
+7) Required payment/exam tables are created safely by the core DB connection; no destructive migration.
+8) Payment DB path uses database.DATABASE_NAME rather than a hard-coded path.
+9) Payment offer list correctly renders only offers visible to the current student/parent.
+10) All project Python files AST-parse successfully.
