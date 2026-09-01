@@ -1,0 +1,4 @@
+Windows EXE preparation:
+1) python -m pip install -r requirements.txt pyinstaller
+2) pyinstaller --noconfirm --windowed --name Frahoosh --add-data "assets;assets" main.py
+3) Output: dist/Frahoosh/
