@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card"><h1>اطلاع‌رسانی دانش‌آموزان و اولیا</h1>
+{% if can_send %}
+<form method="post">
+<label>عنوان پیام</label><input name="title" required>
+<label>متن پیام</label><textarea name="body" rows="5" required></textarea>
+<label>ارسال به</label>
+<select name="audience" id="audience" onchange="changeAudience()">
+<option value="student_selected">دانش‌آموز...</option>
+<option value="student_class">دانش‌آموزان کلاس...</option>
+<option value="student_grade">دانش‌آموزان پایه...</option>
+<option value="parent_student">ولی دانش‌آموز...</option>
+<option value="parent_selected">ولی انتخابی...</option>
+<option value="parent_class">اولیای کلاس...</option>
+<option value="parent_grade">اولیای پایه...</option>
+<option value="student_all">دانش‌آموزان کل مدرسه</option>
+<option value="parent_all">اولیای کل مدرسه</option>
+</select>
+<div id="valueBox"><label id="valueLabel">گیرنده</label><select name="audience_value" id="value"></select></div>
+<button class="btn ok" type="submit">ارسال پیام</button>
+</form>
+{% endif %}</div>
+<div class="card"><h2>پیام‌های ارسالی</h2><table class="tbl"><thead><tr><th>عنوان</th><th>نوع مخاطب</th><th>تعداد گیرندگان</th><th>خوانده‌شده</th><th>تاریخ</th></tr></thead><tbody>
+{% for m in sent %}<tr><td>{{m.title}}</td><td>{{m.audience_type}}</td><td>{{m.recipients}}</td><td>{{m.read_count or 0}}</td><td>{{m.created_at}}</td></tr>{% else %}<tr><td colspan="5">پیامی ثبت نشده است.</td></tr>{% endfor %}</tbody></table></div>
+<a class="btn" href="{{back_url}}">↩ بازگشت به صفحه قبل</a>
+<script>
+const students={{students|tojson}}, parents={{parents|tojson}}, classes={{classes|tojson}}, grades={{grades|tojson}};
+function changeAudience(){const a=document.getElementById('audience').value,v=document.getElementById('value'),box=document.getElementById('valueBox'),lab=document.getElementById('valueLabel');v.innerHTML='';
+const add=(val,text)=>{let o=document.createElement('option');o.value=val;o.textContent=text;v.appendChild(o)};
+if(a==='student_all'||a==='parent_all'){box.style.display='none';return}else box.style.display='block';
+if(a==='student_selected'||a==='parent_student'){lab.textContent='انتخاب دانش‌آموز';students.forEach(x=>add(x.id,(x.last_name||'')+' '+(x.first_name||'')+' — '+(x.grade||'')+' / '+(x.class_name||'')));}
+else if(a==='parent_selected'){lab.textContent='انتخاب ولی';parents.forEach(x=>add(x.id,x.display_name||('ولی '+x.id)));}
+else if(a==='student_class'||a==='parent_class'){lab.textContent='انتخاب کلاس';classes.forEach(x=>add(x,x));}
+else if(a==='student_grade'||a==='parent_grade'){lab.textContent='انتخاب پایه';grades.forEach(x=>add(x,x));}}
+changeAudience();
+</script>
+{% endblock %}

@@ -1,0 +1,239 @@
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+import sqlite3, hashlib, os, re, shutil
+from functools import wraps
+
+BASE=os.path.dirname(os.path.abspath(__file__))
+DB=os.path.join(BASE,'school.db')
+app=Flask(__name__); app.secret_key='frahoosh-v16-12-web-secret'
+
+GROUPS={
+'مدیریت مدرسه': [
+('داشبورد مدیریت مدرسه','school_dashboard','school_profile',['تازه‌سازی']),
+('کاربران و سطح دسترسی','school_users','users',['افزودن','تغییر رمز','حذف کاربر']),
+('تنظیمات مدرسه','school_settings','school_profile',['ذخیره اطلاعات مدرسه','ذخیره/تغییر اطلاعات حساب','پشتیبان‌گیری از دیتابیس']),
+('برنامه‌ریزی مدرسه','school_planning','weekly_schedule',['ثبت اطلاعات','تولید برنامه','حذف ردیف انتخاب‌شده','ویرایش ردیف انتخاب‌شده','ثبت امتحان و تعیین خودکار تاریخ','چیدمان خودکار بر اساس سنگینی درس','تازه‌سازی','حذف امتحان انتخاب‌شده','ویرایش دستی تاریخ/درس']),
+('درخواست‌ها و تأییدها','school_requests','executive_requests',['ثبت درخواست','تأیید','رد']),
+('اطلاع‌رسانی مدرسه','announcements','messages',['ثبت و انتشار','حذف اطلاعیه انتخاب‌شده']),
+('مسابقات مدرسه','school_competitions','competitions',['ثبت','حذف']),
+('کلاس مجازی مدرسه','school_virtual_class','online_classes',['مدیریت کلاس‌ها']),
+('گزارشات مدیریتی','school_reports','executive_reports',['تازه‌سازی','خروجی CSV']),
+],
+'معاونت اجرایی': [
+('داشبورد معاون اجرایی','executive_dashboard','executive_operations',['بستن','ثبت']),
+('مدیریت دانش‌آموزان','executive_students','students',['ورودی اکسل','خروجی اکسل','افزودن دستی','بازخوانی','بارگذاری عکس','ثبت و ذخیره دانش‌آموز']),
+('مدیریت کلاس‌ها','executive_classes','executive_classes',['تازه‌سازی']),
+('کارکنان مدرسه','executive_staff','staff',['ورودی اکسل','افزودن دستی','خروجی اکسل','حذف','بارگذاری عکس','ثبت']),
+('کارت شناسایی دانش‌آموز','student_cards','student_cards',['صدور کارت','ویرایش/صدور مجدد']),
+('کارت ورود به جلسه امتحان','exam_cards','exam_cards',['صدور کارت','ویرایش/صدور مجدد']),
+('شماره صندلی کلاسی','classroom_seats','class_seats',['ثبت/ویرایش صندلی']),
+('صندلی امتحانی','exam_seats','exam_seats',['ثبت/ویرایش','تولید خودکار برای آزمون']),
+('کارنامه‌ها','report_cards','report_cards',['صدور / به‌روزرسانی','بررسی کارنامه','تازه‌سازی','اجازه نمایش نمره میان‌ترم/پایانی']),
+('گواهی‌ها','certificates','certificates',['صدور گواهی','ذخیره PDF','پرینت','پاک کردن انتخاب']),
+('بایگانی و سوابق','archive','archive_items',['ثبت','حذف','تازه‌سازی']),
+('اموال و تجهیزات','inventory','assets',['ثبت مال','ویرایش','حذف','بایگانی','تازه‌سازی']),
+('درخواست‌ها و تأییدیه‌ها','executive_requests','executive_requests',['ثبت درخواست','تأیید','رد','تازه‌سازی']),
+('گزارشات اجرایی','executive_reports','executive_reports',['تازه‌سازی','خروجی CSV']),
+('تنظیمات اجرایی','executive_settings','account_settings',['ذخیره']),
+],
+'معاونت آموزشی': [
+('داشبورد معاونت آموزشی','education_dashboard','educational_activities',['تولید گزارش از داده‌های واقعی']),
+('ارجاعات آموزشی','education_referrals','educational_activities',['ثبت','ویرایش','حذف']),
+('گزارشات آموزشی','education_reports','educational_activities',['تولید/به‌روزرسانی گزارش','خروجی CSV']),
+('بانک سؤال','education_question_bank','quiz_questions',['ثبت سوال','ویرایش سوال','حذف سوال']),
+('برنامه امتحانات','education_exams','exam_schedule',['ثبت و تعیین خودکار تاریخ','چیدمان خودکار همه','ویرایش دستی','حذف']),
+('فعالیت‌های فوق‌برنامه','education_extracurricular','educational_activities',['ثبت','ویرایش','حذف']),
+('ارزیابی‌ها','education_evaluations','grade_items',['ثبت','ویرایش','حذف']),
+('جشنواره خوارزمی','education_khwarizmi','competitions',['ثبت','ویرایش','حذف']),
+('حضور و غیاب آموزشی','education_attendance','attendance',['ثبت','ویرایش','تازه‌سازی']),
+],
+'معاونت پرورشی': [
+('داشبورد پرورشی','cultural_dashboard','cultural_activity_registrations',['ثبت','ویرایش','تازه‌سازی']),
+('استعدادها','cultural_talents','cultural_activity_registrations',['ثبت','ویرایش','حذف']),
+('جشنواره‌ها','cultural_festivals','competitions',['ثبت','ویرایش','حذف']),
+('مسابقات','cultural_competitions','competitions',['ثبت','ویرایش','حذف']),
+('گزارشات پرورشی','cultural_reports','cultural_reports',['ثبت','ویرایش','تازه‌سازی']),
+('اردوها','cultural_trips','cultural_activity_registrations',['ثبت','ویرایش','حذف']),
+('مراسم','cultural_ceremonies','cultural_activity_registrations',['ثبت','ویرایش','حذف']),
+('قرآن','cultural_quran','cultural_activity_registrations',['ثبت','ویرایش','حذف']),
+],
+'مشاوره': [
+('پنل مشاوره','advisor_dashboard','counseling_followups',['ثبت','ویرایش','حذف','تازه‌سازی']),
+('پیگیری‌های مشاوره','counseling_followups','counseling_followups',['ثبت','ویرایش','حذف']),
+('گزارش مشاوره','counseling_reports','counseling_followups',['تولید گزارش','خروجی CSV']),
+],
+'دبیران': [
+('خانه دبیر','teacher_home','teacher_classes',['تازه‌سازی']),
+('پروفایل دبیر','teacher_profile','teachers',['ویرایش','تازه‌سازی']),
+('کلاس‌های من','teacher_classes','teacher_classes',['ثبت','ویرایش','حذف','تازه‌سازی']),
+('نمرات','teacher_grades','grades',['ثبت','ویرایش','حذف','تازه‌سازی']),
+('تکالیف','teacher_assignments','assignments',['ثبت','ویرایش','حذف','تازه‌سازی']),
+('طرح درس','teacher_lesson_plan','lesson_plans',['ثبت','ویرایش','حذف','تازه‌سازی']),
+('بانک سؤال دبیر','teacher_question_bank','quiz_questions',['ثبت سوال','ویرایش سوال','حذف سوال']),
+('کلاس آنلاین دبیر','teacher_online_classes','online_classes',['ثبت','ویرایش','حذف','ورود به کلاس']),
+('آزمون آنلاین دبیر','teacher_online_exams','online_quizzes',['ثبت','ویرایش','حذف']),
+('حضور و غیاب دبیر','teacher_attendance','teacher_attendance',['ثبت','ویرایش','تازه‌سازی']),
+('پیشرفت دانش‌آموز','teacher_student_progress','student_grades',['تازه‌سازی','گزارش']),
+('انضباط','teacher_discipline','discipline_records',['ثبت','ویرایش','حذف']),
+('جلسات','teacher_meetings','parent_meetings',['ثبت','ویرایش','حذف']),
+('درخواست جلسات','teacher_meeting_requests','parent_meetings',['ثبت','تأیید','رد']),
+('جلسات اولیا','teacher_parent_meetings','parent_meetings',['ثبت','ویرایش','حذف']),
+('ارجاعات','teacher_referrals','educational_activities',['ثبت','ویرایش','حذف']),
+('تقویم','teacher_calendar','weekly_schedule',['تازه‌سازی']),
+('گزارش عملکرد دبیر','teacher_reports','teacher_activities',['تولید گزارش عملکرد دبیر']),
+],
+'دانش‌آموزان': [
+('پنل دانش‌آموز','student_dashboard','students',['تازه‌سازی']),
+('پروفایل','student_profile','students',['ویرایش','تازه‌سازی']),
+('نمرات','student_grades','student_grades',['تازه‌سازی']),
+('حضور و غیاب','student_attendance','attendance',['تازه‌سازی']),
+('تکالیف','student_assignments','assignments',['تازه‌سازی']),
+('پیام‌ها','student_messages','messages',['تازه‌سازی']),
+('نمودار پیشرفت','student_charts','student_grades',['تازه‌سازی']),
+('کلاس آنلاین','student_online_classes','online_classes',['ورود به کلاس']),
+('خوارزمی','student_khwarizmi','competitions',['ثبت درخواست','تازه‌سازی']),
+('مسابقات فرهنگی','student_cultural_competitions','competitions',['ثبت درخواست','تازه‌سازی']),
+('ورزش مدرسه','student_school_sports','cultural_activity_registrations',['ثبت','تازه‌سازی']),
+],
+'اولیا': [
+('پنل اولیا','parent_dashboard','parent_children',['تازه‌سازی']),
+('فرزندان من','parent_children','parent_children',['اعمال انتخاب','افزودن فرزند','حذف فرزند','تازه‌سازی']),
+('پروفایل فرزند','parent_child_profile','students',['تازه‌سازی']),
+('وضعیت دانش‌آموز','parent_student_status','student_grades',['تازه‌سازی']),
+('تحلیل دانش‌آموز','parent_student_analysis','student_grades',['تازه‌سازی']),
+('گزارش ماهانه','parent_monthly_report','student_grades',['تازه‌سازی']),
+('وضعیت زنده','parent_live_status','online_presence_checks',['تازه‌سازی']),
+('جلسه با دبیر','parent_teacher_meeting','parent_meetings',['ثبت درخواست ملاقات','تازه‌سازی']),
+('پیام‌های مدرسه','parent_school_messages','messages',['تازه‌سازی']),
+('پرداخت‌ها','parent_payments','payment_records',['ثبت پرداخت/اعلام پرداخت','تازه‌سازی']),
+('پیشنهادها','parent_suggestion','executive_requests',['ثبت','تازه‌سازی']),
+],
+'مالی': [
+('پنل مالی','finance_dashboard','finance_transactions',['ثبت تراکنش','ویرایش','تازه‌سازی','گزارش مالی']),
+('تراکنش‌ها','finance_transactions','finance_transactions',['ثبت','ویرایش','حذف','تازه‌سازی']),
+('حساب‌ها','finance_accounts','finance_accounts',['ثبت','ویرایش','حذف']),
+('کمک‌ها و درآمدها','finance_donations','finance_donations',['ثبت','ویرایش','حذف']),
+('موارد مالی تکمیلی','finance_extra','finance_extra',['ثبت','ویرایش','حذف']),
+('پرداخت‌های آنلاین','online_payments','payment_transactions',['اتصال به درگاه شاپرک']),
+],
+'کلاس و آزمون آنلاین': [
+('کلاس‌های آنلاین','online_classes','online_classes',['ثبت','ویرایش','حذف','ورود به کلاس']),
+('حضور آنلاین','online_attendance','online_attendance',['ثبت','تازه‌سازی']),
+('آزمون‌های آنلاین','online_quizzes','online_quizzes',['ثبت','ویرایش','حذف']),
+('سؤال‌های آزمون','quiz_questions','quiz_questions',['ثبت سوال','ویرایش سوال','حذف سوال']),
+],
+'تابلوی هوشمند': [
+('محتوای تابلو','smart_board_content','smart_board_content',['ذخیره محتوا','ثبت فایل','ثبت رسانه','ثبت آزمون','ثبت فعالیت']),
+('ابزارهای تعاملی','smart_board_tools','smart_board_interactive_tools',['ثبت ابزار تعاملی']),
+('فعالیت‌های تابلو','smart_board_activities','smart_board_activities',['ثبت','ویرایش','حذف']),
+('وایت‌بردها','smart_board_whiteboards','smart_board_whiteboards',['ثبت','ویرایش','حذف']),
+],
+'هوش مصنوعی': [
+('پنل هوش مصنوعی','ai_dashboard','ai_assistant_sessions',['ایجاد جلسه','پرسش و پاسخ']),
+('پرسش‌های هوش مصنوعی','ai_questions','ai_questions',['ثبت','حذف']),
+('تحلیل آموزشی','ai_educational_analysis','ai_educational_analysis',['تولید تحلیل']),
+('گزارش هوشمند','ai_smart_reports','ai_smart_reports',['تولید گزارش']),
+],
+'عمومی': [
+('خانه','home','school_profile',['بازگشت به داشبورد']),
+('حضور و غیاب','attendance','attendance',['ثبت','ویرایش','تازه‌سازی']),
+('انضباط','discipline','discipline_records',['ثبت مورد انضباطی']),
+('نظرسنجی‌ها','surveys','surveys',['شرکت در نظرسنجی انتخاب‌شده','مدیریت نظرسنجی']),
+('گزارش‌های عمومی','common_reports','executive_reports',['تولید/به‌روزرسانی گزارش','خروجی CSV']),
+('اطلاعیه‌ها','notice_board','messages',['ثبت و انتشار','حذف اطلاعیه انتخاب‌شده']),
+('کارکنان','staff','staff',['ثبت','ویرایش','حذف','تازه‌سازی']),
+],
+}
+
+TABLES=set()
+for items in GROUPS.values():
+    for _,_,t,_ in items: TABLES.add(t)
+
+def db():
+    c=sqlite3.connect(DB); c.row_factory=sqlite3.Row; return c
+
+def hashpw(s): return hashlib.sha256(s.encode('utf-8')).hexdigest()
+
+def ensure_admin():
+    c=db(); cur=c.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password TEXT, role TEXT, permissions TEXT, linked_student_id INTEGER, linked_teacher_id INTEGER, linked_staff_id INTEGER, display_name TEXT DEFAULT '')")
+    row=cur.execute("SELECT * FROM users WHERE username=?",('0053409531',)).fetchone()
+    if row is None:
+        old=cur.execute("SELECT * FROM users WHERE username='admin'").fetchone()
+        if old:
+            cur.execute("UPDATE users SET username=?,password=?,role='manager',permissions='all',display_name=? WHERE id=?",('0053409531',hashpw('h0053409531'),old['display_name'] or 'مدیر دبیرستان',old['id']))
+        else:
+            cur.execute("INSERT INTO users(username,password,role,permissions,display_name) VALUES(?,?,?,?,?)",('0053409531',hashpw('h0053409531'),'manager','all','مدیر دبیرستان'))
+    else:
+        cur.execute("UPDATE users SET password=?,role='manager',permissions='all' WHERE username=?",(hashpw('h0053409531'),'0053409531'))
+    c.commit(); c.close()
+ensure_admin()
+
+def login_required(f):
+    @wraps(f)
+    def w(*a,**kw):
+        if 'user_id' not in session: return redirect(url_for('login'))
+        return f(*a,**kw)
+    return w
+
+@app.route('/login',methods=['GET','POST'])
+def login():
+    if request.method=='POST':
+        u=request.form.get('username','').strip(); p=request.form.get('password','')
+        c=db(); row=c.execute('SELECT * FROM users WHERE username=?',(u,)).fetchone(); c.close()
+        ok=row and (row['password']==hashpw(p) or (u=='0053409531' and p=='h0053409531'))
+        if ok:
+            session['user_id']=row['id']; session['username']=u; session['role']=row['role']; session['display_name']=row['display_name'] or 'کاربر'; return redirect(url_for('dashboard'))
+        flash('نام کاربری یا رمز عبور اشتباه است.','error')
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout(): session.clear(); return redirect(url_for('login'))
+
+@app.route('/')
+@app.route('/dashboard')
+@login_required
+def dashboard(): return render_template('dashboard.html',groups=GROUPS)
+
+@app.route('/modules/<group>')
+@login_required
+def group_page(group):
+    if group not in GROUPS: return 'گروه یافت نشد',404
+    return render_template('group.html',group=group,items=GROUPS[group])
+
+@app.route('/module/<slug>',methods=['GET','POST'])
+@login_required
+def module(slug):
+    found=None; group=None
+    for g,items in GROUPS.items():
+        for item in items:
+            if item[1]==slug: found=item; group=g; break
+        if found: break
+    if not found: return 'ماژول یافت نشد',404
+    title,_,table,actions=found
+    c=db(); exists=c.execute("select name from sqlite_master where type='table' and name=?",(table,)).fetchone()
+    rows=[]; cols=[]
+    if exists:
+        cols=[r['name'] for r in c.execute(f'pragma table_info("{table}")').fetchall()]
+        if request.method=='POST':
+            if request.form.get('_action')=='delete':
+                rid=request.form.get('id');
+                if rid and 'id' in cols: c.execute(f'DELETE FROM "{table}" WHERE id=?',(rid,)); c.commit(); flash('رکورد حذف شد.','success')
+            elif request.form.get('_action')=='save':
+                vals=[]; names=[]
+                for col in cols:
+                    if col=='id': continue
+                    if col in request.form:
+                        names.append(col); vals.append(request.form.get(col))
+                if names:
+                    q=','.join('"'+n+'"' for n in names); ph=','.join('?'*len(names)); c.execute(f'INSERT INTO "{table}" ({q}) VALUES ({ph})',vals); c.commit(); flash('رکورد ثبت شد.','success')
+        try: rows=c.execute(f'SELECT * FROM "{table}" ORDER BY id DESC LIMIT 100').fetchall() if 'id' in cols else c.execute(f'SELECT * FROM "{table}" LIMIT 100').fetchall()
+        except Exception: rows=[]
+    c.close()
+    return render_template('module.html',title=title,group=group,table=table,actions=actions,cols=cols,rows=rows,exists=bool(exists))
+
+@app.route('/management')
+@login_required
+def management(): return redirect(url_for('group_page',group='مدیریت مدرسه'))
+
+if __name__=='__main__':
+    app.run(host='127.0.0.1',port=5000,debug=False)

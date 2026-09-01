@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+<h1>اطلاع‌رسانی دبیران</h1>
+<p class="muted">پیام‌های مدیریت و معاونت‌ها برای دبیران در این صندوق نمایش داده می‌شود.</p>
+{% if can_send %}
+<form method="post">
+<label>عنوان پیام</label><input name="title" required>
+<label>متن پیام</label><textarea name="body" rows="5" required></textarea>
+<label>ارسال به</label>
+<select name="audience" id="audience" onchange="toggleTeachers()">
+<option value="teacher_selected">دبیر انتخابی</option>
+<option value="teacher_all">کل دبیران</option>
+</select>
+<div id="teacherSelect">
+<label>انتخاب دبیر (قابل انتخاب چندگانه)</label>
+<select name="teacher_ids" multiple size="8">
+{% for t in teachers %}<option value="{{t.id}}">{{t.last_name or ''}} {{t.first_name or ''}}{% if t.employee_code %} — {{t.employee_code}}{% endif %}</option>{% endfor %}
+</select>
+</div>
+<button class="btn ok" type="submit">ارسال پیام</button>
+</form>
+{% endif %}
+</div>
+{% if can_send %}
+<div class="card"><h2>پیام‌های ارسالی</h2>
+<div class="tablewrap"><table class="tbl"><thead><tr><th>عنوان</th><th>فرستنده</th><th>تعداد گیرندگان</th><th>خوانده‌شده</th><th>تاریخ</th></tr></thead><tbody>
+{% for m in sent %}<tr><td>{{m.title}}</td><td>{{m.sender_name}}</td><td>{{m.recipients}}</td><td>{{m.read_count or 0}}</td><td>{{m.created_at}}</td></tr>{% else %}<tr><td colspan="5">پیامی ثبت نشده است.</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}
+<div class="card"><h2>صندوق پیام‌های دبیر</h2>
+<div class="tablewrap"><table class="tbl"><thead><tr><th>عنوان</th><th>فرستنده</th><th>متن پیام</th><th>تاریخ</th><th>وضعیت</th></tr></thead><tbody>
+{% for m in inbox %}<tr><td>{{m.title}}</td><td>{{m.sender_name}}</td><td>{{m.body}}</td><td>{{m.created_at}}</td><td>{% if m.read_at %}خوانده شده{% else %}<form method="post" action="/module/teacher_notifications/read/{{m.target_row_id}}"><button class="btn ok" type="submit">علامت‌گذاری به عنوان خوانده‌شده</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="5">پیامی برای شما وجود ندارد.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+<a class="btn" href="{{back_url}}">↩ بازگشت به صفحه قبل</a>
+<script>function toggleTeachers(){document.getElementById('teacherSelect').style.display=document.getElementById('audience').value==='teacher_all'?'none':'block'}toggleTeachers();</script>
+{% endblock %}

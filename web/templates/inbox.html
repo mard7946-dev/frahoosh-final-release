@@ -1,0 +1,2 @@
+{% extends 'base.html' %}
+{% block content %}<div class="card"><h1>{{title}}</h1><table class="tbl"><thead><tr><th>عنوان</th><th>فرستنده</th><th>متن پیام</th><th>تاریخ</th><th>وضعیت</th></tr></thead><tbody>{% for m in rows %}<tr><td>{{m.title}}</td><td>{{m.sender_name}}</td><td>{{m.body}}</td><td>{{m.created_at}}</td><td>{{'خوانده شده' if m.read_at else 'جدید'}}</td></tr>{% else %}<tr><td colspan="5">پیامی وجود ندارد.</td></tr>{% endfor %}</tbody></table></div><a class="btn" href="{{back_url}}">↩ بازگشت به صفحه قبل</a>{% endblock %}
